@@ -1,0 +1,93 @@
+Here is a comprehensive summary and prompt designed to immediately orient a new debugging session. It isolates the specific conflict between the `dlt` library, `fsspec`, and the password characters.
+
+---
+
+### Summary of the Problem
+
+We are trying to run a **`dlt` (Data Load Tool) pipeline** to read CSV files from an internal Airbus **FTP server (Port 21)**.
+
+While standard Python scripts (`ftplib` and `fsspec`) connect successfully, the **`dlt` pipeline consistently fails with `530 Login failed**`. The root cause has been identified as a parsing issue regarding the **semicolon (`;`)** inside the service account password.
+
+### Technical Specifics
+
+* **Target:** `ftsplus.airbus.corp` (Standard FTP, Port 21).
+* **Library:** `dlt` (which wraps `fsspec`, which wraps `ftplib`).
+* **The Conflict:** The password is `D6*bPb51SsYxW7;qEF+r`.
+* The **`;`** is interpreted as a delimiter in connection URLs.
+* If **Raw** in URL: The password is truncated at the `;`.
+* If **Encoded** (`%3B`) in URL: `fsspec` sends the literal `%3B` to the server (it does not decode before sending), so auth fails.
+* If **Passed via Dict** (`credentials={...}`): `dlt`/`fsspec` seems to ignore the dictionary or fails to merge it correctly when the URL scheme is provided.
+
+
+
+### What has been validated (The "Control Group")
+
+1. **Standard `ftplib` script:** Works perfectly. The server is accessible, and credentials are correct.
+2. **Raw `fsspec` script:** Works **only** when bypassing the URL and passing `username`/`password` as keyword arguments directly to `fsspec.filesystem()`.
+
+### The Error
+
+```text
+ftplib.error_perm: 530-Login failed. Re-enter your user name and password.
+530  If this problem persists, contact your system administrator.
+
+```
+
+---
+
+### The Prompt for the New Context
+
+**Copy and paste this into your new chat:**
+
+```markdown
+I am debugging a **dlt (Data Load Tool)** pipeline connecting to a standard **FTP server (Port 21)**. 
+
+**The Issue:** I am getting `ftplib.error_perm: 530-Login failed`. 
+I have confirmed the credentials are correct because I can connect successfully using a standalone `ftplib` script and a standalone `fsspec` script. The issue is specific to how `dlt` handles the password configuration.
+
+**Root Cause:**
+My password contains a semicolon: `D6*bPb51SsYxW7;qEF+r`.
+This breaks the connection because:
+1. If I put it in the URL (`ftp://user:pass@host`), the `;` cuts the password short (URL separator).
+2. If I URL-encode it (`%3B`), the server receives the literal `%3B` and rejects it.
+3. If I pass it via the `credentials` dictionary in `dlt`, it seems to be ignored or overridden by the URL parser.
+
+**What we have tested so far:**
+1. **Hybrid Config:** URL (`ftp://user@host`) + Dict (`{'password': '...'}`) -> **Failed (530)**.
+2. **Clean URL:** URL (`ftp://host`) + Dict (`{'username': '...', 'password': '...'}`) -> **Failed (530)**.
+3. **Verified Working Code (Non-DLT):**
+   ```python
+   # This standalone fsspec code WORKS:
+   fs = fsspec.filesystem("ftp", host="...", username="...", password="raw_password_with_semicolon")
+
+```
+
+**The Goal:**
+I need to configure the `dlt` `filesystem` resource to pass the credentials **exactly** like the working `fsspec` example above, preventing `dlt` from trying to parse the password via URL.
+
+Here is the failing `dlt` code structure we left off with:
+
+```python
+    host = "ftsplus.airbus.corp"
+    # URL contains NO credentials. Just protocol, host, port, and path.
+    bucket_url = f"ftp://{host}:21/satair-walter/master-data/dev/new"
+
+    ftp_creds = {
+        "username": "SA-A230-9FFE-INT", 
+        "password": "D6*bPb51SsYxW7;qEF+r" # Raw password with semicolon
+    }
+
+    # This fails with 530
+    ftp_files = filesystem(
+        bucket_url=bucket_url,
+        file_glob="*.csv",
+        credentials=ftp_creds
+    )
+
+```
+
+How do I force `dlt` to respect the password in the dictionary and ignore URL parsing for FTP?
+
+```
+
+```
