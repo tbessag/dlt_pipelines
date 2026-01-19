@@ -12,7 +12,7 @@ While standard Python scripts (`ftplib` and `fsspec`) connect successfully, the 
 
 * **Target:** `ftsplus.airbus.corp` (Standard FTP, Port 21).
 * **Library:** `dlt` (which wraps `fsspec`, which wraps `ftplib`).
-* **The Conflict:** The password is `D6*bPb51SsYxW7;qEF+r`.
+* **The Conflict:** The password is `xx*xx;xx+x`.
 * The **`;`** is interpreted as a delimiter in connection URLs.
 * If **Raw** in URL: The password is truncated at the `;`.
 * If **Encoded** (`%3B`) in URL: `fsspec` sends the literal `%3B` to the server (it does not decode before sending), so auth fails.
