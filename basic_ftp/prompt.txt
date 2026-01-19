@@ -46,7 +46,7 @@ I am debugging a **dlt (Data Load Tool)** pipeline connecting to a standard **FT
 I have confirmed the credentials are correct because I can connect successfully using a standalone `ftplib` script and a standalone `fsspec` script. The issue is specific to how `dlt` handles the password configuration.
 
 **Root Cause:**
-My password contains a semicolon: `D6*bPb51SsYxW7;qEF+r`.
+My password contains a semicolon: `xx*xx;xx+x`.
 This breaks the connection because:
 1. If I put it in the URL (`ftp://user:pass@host`), the `;` cuts the password short (URL separator).
 2. If I URL-encode it (`%3B`), the server receives the literal `%3B` and rejects it.
@@ -70,11 +70,11 @@ Here is the failing `dlt` code structure we left off with:
 ```python
     host = "ftsplus.airbus.corp"
     # URL contains NO credentials. Just protocol, host, port, and path.
-    bucket_url = f"ftp://{host}:21/satair-walter/master-data/dev/new"
+    bucket_url = f"ftp://{host}:21/xxx-walter/master-data/dev/new"
 
     ftp_creds = {
-        "username": "SA-A230-9FFE-INT", 
-        "password": "D6*bPb51SsYxW7;qEF+r" # Raw password with semicolon
+        "username": "xxx", 
+        "password": "xx*xx;xx+x" # Raw password with semicolon
     }
 
     # This fails with 530
